@@ -1,0 +1,2088 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0284c7" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Lavandería Express</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg-main: #f1f5f9;
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --slate-dark: #0f172a;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      margin: 0;
+      padding: 0 0 88px 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--slate-dark);
+    }
+    .app-header {
+      background: linear-gradient(135deg, #0369a1 0%, #0f172a 100%);
+      color: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      box-shadow: 0 4px 16px rgba(15, 23, 42, 0.22);
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+    }
+    .input-field {
+      width: 100%;
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: #0f172a;
+      transition: all 0.15s ease;
+    }
+    .input-field:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+    .btn-active:active {
+      transform: scale(0.97);
+    }
+    .status-pill {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 6px 8px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1.5px solid transparent;
+      user-select: none;
+    }
+    #ticketCanvas {
+      width: 100%;
+      max-width: 280px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 6px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+      border: 1px solid #cbd5e1;
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      #printTicketContainer, #printTicketContainer * { visibility: visible !important; }
+      #printTicketContainer {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 58mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #ticketCanvas {
+        width: 58mm !important;
+        max-width: 58mm !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      @page {
+        size: 58mm auto;
+        margin: 0mm;
+      }
+    }
+
+      /* Bloqueo total de barra/botón flotante de Netlify */
+      iframe[src*="netlify"],
+      div[id*="netlify"],
+      div[class*="netlify"],
+      a[href*="netlify.com"],
+      netlify-Identity-widget,
+      #netlify-drawer,
+      .netlify-drawer {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        position: fixed !important;
+        top: -9999px !important;
+        left: -9999px !important;
+        z-index: -9999 !important;
+      }
+
+  </style>
+</head>
+<body>
+
+  <!-- ENCABEZADO SUPERIOR Y BARRA BCV -->
+  <header class="app-header">
+    <div class="max-w-md mx-auto px-3.5 pt-3 pb-2.5 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-2xl bg-sky-500/25 border border-sky-300/30 flex items-center justify-center shadow-inner">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <rect x="4" y="2" width="16" height="20" rx="3"></rect>
+            <circle cx="12" cy="13" r="5"></circle>
+            <path d="M8 6h.01M12 6h.01"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 id="headerBrandTitle" class="font-extrabold text-base tracking-tight leading-none">LAVANDERÍA EXPRESS</h1>
+          <p class="text-[11px] text-sky-200 mt-0.5">Control de Cajas y Etiquetas 58mm</p>
+        </div>
+      </div>
+
+      <button onclick="exportAllToExcel()" class="btn-active bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"></path>
+        </svg>
+        <span>Excel</span>
+      </button>
+    </div>
+
+    <!-- Barra de Tasa Oficial BCV -->
+    <div class="bg-slate-950/70 border-t border-white/10 px-3.5 py-2">
+      <div class="max-w-md mx-auto flex items-center justify-between gap-2 text-xs">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span class="text-slate-300 font-bold text-[11px]">TASA BCV:</span>
+          <input id="bcvRateInput" type="text" inputmode="decimal"
+            onchange="saveBcvRateManual()"
+            oninput="saveBcvRateManual()"
+            class="w-20 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-amber-300 font-extrabold text-xs text-center focus:outline-none focus:border-sky-400" />
+          <span class="text-slate-400 text-[11px] font-semibold">Bs/$</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button onclick="fetchBcvRate()" id="btnSyncBcv"
+            class="btn-active bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1 rounded-lg font-bold text-[11px]">
+            Sincronizar
+          </button>
+          <a href="https://www.bcv.org.ve/" target="_blank" rel="noopener"
+            class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sky-300 px-2 py-1 rounded-lg text-[11px] font-semibold">
+            bcv.org.ve
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen rápido superior -->
+    <div class="max-w-md mx-auto px-3.5 py-2.5 grid grid-cols-3 gap-2 text-center">
+      <div class="bg-white/10 rounded-xl py-1.5 px-2 border border-white/10">
+        <div class="text-[9px] uppercase font-bold text-sky-200">En Planta</div>
+        <div id="topActiveCount" class="text-xs font-extrabold text-white mt-0.5">0 cajas</div>
+      </div>
+      <div class="bg-white/10 rounded-xl py-1.5 px-2 border border-white/10">
+        <div class="text-[9px] uppercase font-bold text-amber-200">Por Cobrar</div>
+        <div id="topPendingUsd" class="text-xs font-extrabold text-amber-300 mt-0.5">$0.00</div>
+      </div>
+      <div class="bg-white/10 rounded-xl py-1.5 px-2 border border-white/10">
+        <div class="text-[9px] uppercase font-bold text-emerald-200">Ganancia Neta</div>
+        <div id="topProfitUsd" class="text-xs font-extrabold text-emerald-300 mt-0.5">$0.00</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="max-w-md mx-auto px-3.5 pt-3.5 space-y-3.5">
+
+    <!-- PESTAÑA 1: NUEVA ORDEN -->
+    <section id="tab-nueva" class="space-y-3.5">
+      <div class="card p-4 space-y-3.5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div>
+            <h2 class="font-extrabold text-slate-800 text-base">Nueva Orden de Lavado</h2>
+            <p class="text-xs text-slate-500">Registra la orden e imprime la etiqueta de la caja</p>
+          </div>
+          <div class="text-right">
+            <span class="block text-[10px] font-extrabold uppercase text-slate-400">N° Caja / Orden</span>
+            <input id="orderIdInput" type="text"
+              class="w-24 text-right font-mono font-extrabold text-sm text-sky-700 bg-sky-50 border border-sky-200 rounded-xl px-2.5 py-1 focus:outline-none" />
+          </div>
+        </div>
+
+        <!-- Cédula de Identidad con Autocompletado -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-xs font-extrabold text-slate-700">Cédula de Identidad (C.I.) *</label>
+            <span id="clientHistoryBadge" class="hidden text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800"></span>
+          </div>
+          <div class="flex gap-1.5">
+            <select id="ciPrefix" onchange="handleCiLookup()" class="bg-slate-100 border border-slate-300 rounded-xl px-2.5 py-2.5 text-sm font-extrabold text-slate-700 focus:outline-none">
+              <option value="V-">V-</option>
+              <option value="E-">E-</option>
+              <option value="J-">J-</option>
+            </select>
+            <input id="ciNumber" type="text" inputmode="numeric" placeholder="Ej. 12345678"
+              oninput="handleCiLookup()"
+              class="input-field font-bold" />
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Al ingresar la C.I., si el cliente ya existe se cargan sus datos automáticamente.</p>
+        </div>
+
+        <!-- Nombre y Teléfono WhatsApp -->
+        <div class="grid grid-cols-1 gap-3">
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Nombre del Cliente *</label>
+            <input id="clientName" type="text" placeholder="Nombre y apellido" class="input-field font-semibold" />
+          </div>
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Teléfono (WhatsApp) *</label>
+            <input id="clientPhone" type="tel" placeholder="Ej. 04141234567" class="input-field font-semibold" />
+          </div>
+        </div>
+
+        <!-- Dirección escrita -->
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Dirección de Entrega (Impresa en etiqueta) *</label>
+          <textarea id="clientAddress" rows="2" placeholder="Sector, calle, número de casa y referencia" class="input-field font-medium"></textarea>
+        </div>
+
+        <!-- Coordenadas GPS (Ocultas en la etiqueta) -->
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-extrabold text-slate-700">Coordenadas GPS del Cliente</label>
+            <span class="text-[10px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md">Oculto en etiqueta</span>
+          </div>
+          <div class="flex gap-1.5">
+            <input id="clientCoords" type="text" placeholder="Latitud, Longitud (o pega link Maps)"
+              class="input-field text-xs font-mono py-2" />
+            <button type="button" onclick="captureGps('clientCoords','gpsStatusMsg')"
+              class="btn-active bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold px-3 py-2 rounded-xl shrink-0 flex items-center gap-1 shadow-sm">
+              <span>📍</span><span>GPS</span>
+            </button>
+            <button type="button" onclick="openCoordsInMaps(document.getElementById('clientCoords').value)"
+              class="btn-active bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-extrabold px-2.5 py-2 rounded-xl shrink-0">
+              🗺️
+            </button>
+          </div>
+          <p id="gpsStatusMsg" class="text-[11px] text-slate-500">Se guarda en la ficha del cliente para futuras entregas.</p>
+        </div>
+
+        <!-- Peso en Kg y Cálculo automático por Kg -->
+        <div class="bg-sky-50/80 p-3.5 rounded-2xl border border-sky-200 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-extrabold text-slate-800">Peso de la Orden (Kg) *</label>
+            <span class="text-[11px] font-bold text-sky-800">Tarifa: <strong id="labelPricePerKg">0.00</strong> Bs/Kg</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <input id="orderKg" type="text" inputmode="decimal" placeholder="Ej. 8.5"
+                oninput="recalcOrderTotals()"
+                class="input-field bg-white border-sky-300 text-lg font-extrabold text-slate-900 text-center" />
+            </div>
+            <div class="bg-white border border-sky-200 rounded-xl px-3 py-1.5 flex flex-col justify-center">
+              <span class="text-[10px] font-extrabold uppercase text-slate-400">Total a Cobrar</span>
+              <span class="text-sm font-extrabold text-emerald-700"><span id="calcTotalBs">0.00</span> Bs</span>
+              <span class="text-[11px] font-bold text-slate-500">≈ $<span id="calcTotalUsd">0.00</span> BCV</span>
+            </div>
+          </div>
+
+          <!-- Desglose en vivo de Costos (Insumos + Operaciones) y Ganancia Neta de la orden -->
+          <div class="bg-white/90 border border-sky-200/80 rounded-xl px-3 py-2 flex items-center justify-between text-[11px]">
+            <span class="text-slate-600 font-semibold">Costo (<span id="calcOrderCostRateLabel">0.00</span> Bs/Kg): <strong class="text-rose-600"><span id="calcOrderCostBs">0.00</span> Bs</strong></span>
+            <span class="text-slate-700 font-semibold">Ganancia Neta: <strong class="text-emerald-700"><span id="calcOrderProfitBs">0.00</span> Bs ($<span id="calcOrderProfitUsd">0.00</span>)</strong></span>
+          </div>
+
+          <div class="grid grid-cols-6 gap-1.5 pt-0.5">
+            <button type="button" onclick="setQuickKg(3)" class="btn-active text-xs bg-white border border-sky-200 text-sky-900 font-extrabold py-1.5 rounded-lg">3kg</button>
+            <button type="button" onclick="setQuickKg(5)" class="btn-active text-xs bg-white border border-sky-200 text-sky-900 font-extrabold py-1.5 rounded-lg">5kg</button>
+            <button type="button" onclick="setQuickKg(7.5)" class="btn-active text-xs bg-white border border-sky-200 text-sky-900 font-extrabold py-1.5 rounded-lg">7.5</button>
+            <button type="button" onclick="setQuickKg(10)" class="btn-active text-xs bg-white border border-sky-200 text-sky-900 font-extrabold py-1.5 rounded-lg">10kg</button>
+            <button type="button" onclick="setQuickKg(12)" class="btn-active text-xs bg-white border border-sky-200 text-sky-900 font-extrabold py-1.5 rounded-lg">12kg</button>
+            <button type="button" onclick="setQuickKg(16)" class="btn-active text-xs bg-white border border-sky-200 text-sky-900 font-extrabold py-1.5 rounded-lg">16kg</button>
+          </div>
+        </div>
+
+        <!-- Modalidad de Pago y Referencia COD -->
+        <div class="space-y-2">
+          <label class="block text-xs font-extrabold text-slate-700">Modalidad de Pago y Código (COD) *</label>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button type="button" id="payBtnNow" onclick="selectPaymentMode('PAGADO')"
+              class="btn-active py-2.5 px-2 rounded-xl text-xs font-extrabold border bg-emerald-600 text-white border-emerald-600 shadow-sm">
+              Pagado Hoy
+            </button>
+            <button type="button" id="payBtn15" onclick="selectPaymentMode('PROX_15')"
+              class="btn-active py-2.5 px-2 rounded-xl text-xs font-extrabold border bg-slate-50 text-slate-700 border-slate-300">
+              Próximo 15
+            </button>
+            <button type="button" id="payBtn30" onclick="selectPaymentMode('PROX_30')"
+              class="btn-active py-2.5 px-2 rounded-xl text-xs font-extrabold border bg-slate-50 text-slate-700 border-slate-300">
+              Próximo 30
+            </button>
+          </div>
+
+          <div id="codInputWrapper" class="flex gap-1.5 pt-1">
+            <input id="orderCod" type="text" placeholder="Ref. Pago Móvil / Transferencia"
+              class="input-field font-mono font-bold" />
+            <button type="button" onclick="document.getElementById('orderCod').value='EFECTIVO'"
+              class="btn-active bg-slate-200 hover:bg-slate-300 text-slate-800 font-extrabold text-xs px-3 rounded-xl shrink-0">
+              Efectivo
+            </button>
+          </div>
+
+          <div id="payLaterNotice" class="hidden text-xs text-amber-900 bg-amber-50 border border-amber-300 rounded-xl p-2.5 font-semibold">
+            La orden se guardará en <strong>Deudores</strong> y su monto en dólares se calculará con la tasa BCV del día en que el cliente pague.
+          </div>
+        </div>
+
+        <!-- Fechas de Creación y Entrega Estimada -->
+        <div class="space-y-3 pt-2 border-t border-slate-100">
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Fecha y Hora de Creación</label>
+            <input id="orderCreatedAt" type="datetime-local" class="input-field text-xs font-bold" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Fecha y Hora Estimada de Entrega *</label>
+            <input id="orderDeliveryAt" type="datetime-local" class="input-field text-xs font-extrabold text-sky-900 mb-2" />
+            <div class="grid grid-cols-4 gap-1.5">
+              <button type="button" onclick="setDeliveryOffsetHours(3)"
+                class="btn-active bg-slate-100 hover:bg-sky-100 text-slate-800 font-extrabold text-xs py-2 rounded-xl border border-slate-300">
+                +3 Horas
+              </button>
+              <button type="button" onclick="setDeliveryOffsetHours(5)"
+                class="btn-active bg-slate-100 hover:bg-sky-100 text-slate-800 font-extrabold text-xs py-2 rounded-xl border border-slate-300">
+                +5 Horas
+              </button>
+              <button type="button" onclick="setDeliveryFixedTime(12, 0)"
+                class="btn-active bg-slate-100 hover:bg-sky-100 text-slate-800 font-extrabold text-xs py-2 rounded-xl border border-slate-300">
+                A las 12 PM
+              </button>
+              <button type="button" onclick="setDeliveryFixedTime(17, 0)"
+                class="btn-active bg-slate-100 hover:bg-sky-100 text-slate-800 font-extrabold text-xs py-2 rounded-xl border border-slate-300">
+                A las 5 PM
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" onclick="saveNewOrder()"
+          class="btn-active w-full bg-sky-600 hover:bg-sky-700 text-white font-extrabold py-3.5 rounded-2xl shadow-lg text-sm flex items-center justify-center gap-2">
+          <span>🖨️ Guardar Orden y Generar Etiqueta</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 2: HISTORIAL DE ÓRDENES Y CAMBIO DE ESTATUS -->
+    <section id="tab-ordenes" class="hidden space-y-3">
+      <div class="card p-3.5 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h2 class="font-extrabold text-slate-800 text-base">Órdenes y Estatus de Cajas</h2>
+          <span id="ordersCountBadge" class="text-xs font-extrabold bg-sky-100 text-sky-800 px-2.5 py-0.5 rounded-full">0 órdenes</span>
+        </div>
+        <input id="searchOrdersInput" type="text" placeholder="Buscar por N° orden, cliente, C.I., estatus o COD..."
+          oninput="renderOrdersList()" class="input-field text-xs" />
+      </div>
+
+      <div id="ordersListContainer" class="space-y-3"></div>
+    </section>
+
+    <!-- PESTAÑA 3: DEUDORES (PRÓXIMO 15 / 30) -->
+    <section id="tab-deudores" class="hidden space-y-3">
+      <div class="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 flex items-center justify-between shadow-sm">
+        <div>
+          <h2 class="font-extrabold text-amber-950 text-sm">Cuentas por Cobrar (15 y 30)</h2>
+          <p class="text-[11px] text-amber-800 font-medium">Se liquidan en dólares a la tasa BCV del día pagado</p>
+        </div>
+        <div class="text-right">
+          <div class="text-sm font-extrabold text-amber-950"><span id="debtTotalBs">0.00</span> Bs</div>
+          <div class="text-xs font-bold text-amber-800">≈ $<span id="debtTotalUsd">0.00</span> hoy</div>
+        </div>
+      </div>
+
+      <div id="debtorsListContainer" class="space-y-2.5"></div>
+    </section>
+
+    <!-- PESTAÑA 4: DIRECTORIO DE CLIENTES (CON CREACIÓN Y EDICIÓN COMPLETA) -->
+    <section id="tab-clientes" class="hidden space-y-3">
+      <div class="card p-3.5 space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-extrabold text-slate-800 text-base">Directorio de Clientes</h2>
+              <span id="clientsCountBadge" class="text-xs font-extrabold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">0</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Edita datos, C.I., GPS o historial de servicios</p>
+          </div>
+          <button type="button" onclick="openClientModal(null)"
+            class="btn-active bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs px-3 py-2 rounded-xl shadow-sm shrink-0">
+            + Nuevo Cliente
+          </button>
+        </div>
+        <input id="searchClientsInput" type="text" placeholder="Buscar cliente por Cédula (C.I.), nombre o teléfono..."
+          oninput="renderClientsList()" class="input-field text-xs" />
+      </div>
+
+      <div id="clientsListContainer" class="space-y-2.5"></div>
+    </section>
+
+    <!-- PESTAÑA 5: PROMOCIONES POR WHATSAPP -->
+    <section id="tab-promos" class="hidden space-y-3">
+      <div class="card p-4 space-y-3">
+        <div>
+          <h2 class="font-extrabold text-slate-800 text-base">Promociones por WhatsApp</h2>
+          <p class="text-xs text-slate-500">Clasifica a tus clientes por cantidad de servicios contratados.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Filtrar clientes por servicios contratados</label>
+          <select id="promoMinServices" onchange="renderPromoRecipients()" class="input-field text-xs font-extrabold">
+            <option value="1">Todos los clientes (1 o más servicios)</option>
+            <option value="2">De 2 servicios en adelante</option>
+            <option value="3">De 3 servicios en adelante</option>
+            <option value="4">De 4 servicios en adelante</option>
+            <option value="5">De 5 servicios en adelante</option>
+            <option value="6">De 6 servicios en adelante</option>
+            <option value="7">De 7 servicios en adelante</option>
+            <option value="8">De 8 servicios en adelante</option>
+            <option value="9">De 9 servicios en adelante</option>
+            <option value="10">De 10 servicios o más</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Mensaje de la Promoción</label>
+          <textarea id="promoMessageText" rows="4" oninput="renderPromoRecipients()"
+            class="input-field text-xs font-medium">¡Hola {nombre}! Gracias por preferirnos ({servicios} servicios con nosotros). Hoy tenemos promoción especial en lavado y secado a domicilio con búsqueda gratis. ¡Responde este mensaje para apartar tu cupo!</textarea>
+          <p class="text-[11px] text-slate-400 mt-1">Variables automáticas: <strong>{nombre}</strong> y <strong>{servicios}</strong>.</p>
+        </div>
+      </div>
+
+      <div class="card p-3.5 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-extrabold uppercase text-slate-500">Clientes en este segmento</span>
+          <span id="promoFilteredCount" class="text-xs font-extrabold text-sky-700">0 clientes</span>
+        </div>
+        <div id="promoRecipientsContainer" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- PESTAÑA 6: BALANCE DE GANANCIAS Y COSTOS POR KILOGRAMO (Bs/Kg) -->
+    <section id="tab-balance" class="hidden space-y-3.5">
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-emerald-600 text-white rounded-2xl p-3.5 shadow-sm">
+          <span class="text-[10px] uppercase font-extrabold text-emerald-100">Ganancia Neta (Pagadas)</span>
+          <div class="text-lg font-extrabold mt-0.5"><span id="finNetProfitBs">0.00</span> Bs</div>
+          <div class="text-xs font-bold text-emerald-100">Equiv: $<span id="finNetProfitUsd">0.00</span></div>
+        </div>
+        <div class="bg-sky-700 text-white rounded-2xl p-3.5 shadow-sm">
+          <span class="text-[10px] uppercase font-extrabold text-sky-100">Ingresos Cobrados</span>
+          <div class="text-lg font-extrabold mt-0.5"><span id="finGrossBs">0.00</span> Bs</div>
+          <div class="text-xs font-bold text-sky-100">Equiv: $<span id="finGrossUsd">0.00</span></div>
+        </div>
+        <div class="card p-3.5">
+          <span class="text-[10px] uppercase font-extrabold text-slate-400">Costo Insumos + Operaciones</span>
+          <div class="text-base font-extrabold text-rose-600 mt-0.5"><span id="finTotalCostBs">0.00</span> Bs</div>
+          <div class="text-xs font-bold text-slate-500">Equiv: $<span id="finTotalCostUsd">0.00</span></div>
+        </div>
+        <div class="card p-3.5">
+          <span class="text-[10px] uppercase font-extrabold text-slate-400">Por Cobrar (Deudores)</span>
+          <div class="text-base font-extrabold text-amber-600 mt-0.5"><span id="finPendingBs">0.00</span> Bs</div>
+          <div class="text-xs font-bold text-slate-500">≈ $<span id="finPendingUsd">0.00</span> hoy</div>
+        </div>
+      </div>
+
+      <!-- Configuración de Precios y Costos por Kilogramo (Bs/Kg) -->
+      <div class="card p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-extrabold text-slate-800 text-sm">Precios y Costos por Kilogramo (Bs/Kg)</h3>
+            <p class="text-xs text-slate-500">Se guardan automáticamente al escribir o al pulsar Guardar.</p>
+          </div>
+          <span id="saveConfigBadge" class="hidden text-[11px] font-extrabold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">✓ Guardado</span>
+        </div>
+
+        <div class="space-y-2.5">
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Nombre Comercial (Encabezado de Etiqueta)</label>
+            <input id="cfgBusinessName" type="text" oninput="autoSaveCostConfig()" class="input-field font-bold" />
+          </div>
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Precio de Venta por Kg de Ropa (Bs/Kg)</label>
+            <input id="cfgPricePerKgBs" type="text" inputmode="decimal" oninput="autoSaveCostConfig()" class="input-field font-extrabold text-emerald-800" />
+          </div>
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Costo de Insumos por Kg en Bs. (Jabón, suavizante, bolsas)</label>
+            <input id="cfgSuppliesCostPerKgBs" type="text" inputmode="decimal" oninput="autoSaveCostConfig()" class="input-field font-bold text-rose-700" />
+          </div>
+          <div>
+            <label class="block text-xs font-extrabold text-slate-700 mb-1">Costo de Operaciones por Kg en Bs. (Transporte, gasolina, entrega)</label>
+            <input id="cfgOperationsCostPerKgBs" type="text" inputmode="decimal" oninput="autoSaveCostConfig()" class="input-field font-bold text-rose-700" />
+          </div>
+        </div>
+
+        <!-- Resumen unitario por cada 1 Kg -->
+        <div class="bg-slate-900 text-white rounded-2xl p-3 space-y-1 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-400">Costo Total por 1 Kg (Insumos + Operaciones):</span>
+            <strong class="text-rose-300"><span id="unitTotalCostPerKgBs">0.00</span> Bs/Kg</strong>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-400">Ganancia Neta por 1 Kg:</span>
+            <strong class="text-emerald-300"><span id="unitNetProfitPerKgBs">0.00</span> Bs/Kg (≈ $<span id="unitNetProfitPerKgUsd">0.00</span>/Kg)</strong>
+          </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200 cursor-pointer">
+          <input id="recalcExistingOrdersCheck" type="checkbox" class="w-4 h-4 accent-sky-600 rounded" />
+          <span>Recalcular también los costos de las órdenes ya creadas con estas tarifas</span>
+        </label>
+
+        <button type="button" onclick="saveBusinessAndCostConfig(true)"
+          class="btn-active w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs shadow">
+          💾 Guardar Precios y Costos por Kg
+        </button>
+      </div>
+
+      <!-- Exportación Excel -->
+      <div class="card p-4 space-y-2.5">
+        <h3 class="font-extrabold text-slate-800 text-sm">Base de Datos en Excel (.xlsx)</h3>
+        <p class="text-xs text-slate-500">Exporta todas las órdenes con precios en Bolívares, costos de insumos y operaciones por Kg, tasa BCV del día pagado y monto en dólares ($).</p>
+        <button type="button" onclick="exportAllToExcel()"
+          class="btn-active w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-xl text-xs shadow flex items-center justify-center gap-2">
+          <span>📥 Exportar / Compartir Excel (.xlsx)</span>
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: ETIQUETA TÉRMICA GRÁFICA DE ALTA DEFINICIÓN (58MM) -->
+  <div id="ticketModal" class="fixed inset-0 bg-slate-950/75 z-50 hidden items-center justify-center p-3 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <div>
+          <h3 class="font-extrabold text-slate-800 text-sm">Etiqueta para Caja Plástica (58 mm)</h3>
+          <p class="text-[11px] text-slate-500">Diseño de alto contraste sin coordenadas GPS</p>
+        </div>
+        <button onclick="closeTicketModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-extrabold text-sm">✕</button>
+      </div>
+
+      <!-- Lienzo gráfico 384px (58mm @ 203dpi) -->
+      <div id="printTicketContainer" class="bg-slate-100 p-3 rounded-2xl">
+        <canvas id="ticketCanvas" width="384" height="520"></canvas>
+      </div>
+
+      <!-- Botones de Impresión para APK / Android -->
+      <div class="space-y-2 pt-1">
+        <button type="button" onclick="printGraphicViaRawBt()"
+          class="btn-active w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md">
+          <span>🟢 Imprimir en RawBT (Diseño Exacto de Etiqueta)</span>
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="printEscPosTextViaRawBt()"
+            class="btn-active bg-sky-600 hover:bg-sky-700 text-white font-extrabold py-2.5 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow">
+            <span>⚡ RawBT Texto Rápido</span>
+          </button>
+          <button type="button" onclick="printViaWebBluetooth()"
+            class="btn-active bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-2.5 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow">
+            <span>🔵 Bluetooth Directo</span>
+          </button>
+        </div>
+        <button type="button" onclick="window.print()"
+          class="btn-active w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs">
+          🖨️ Imprimir con Sistema Android (58 mm)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR O EDITAR CLIENTE -->
+  <div id="clientEditModal" class="fixed inset-0 bg-slate-950/75 z-50 hidden items-center justify-center p-3 overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 id="clientModalTitle" class="font-extrabold text-slate-800 text-sm">Editar Cliente</h3>
+        <button onclick="closeClientModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-extrabold text-sm">✕</button>
+      </div>
+
+      <div class="space-y-2.5">
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Cédula de Identidad (C.I.) *</label>
+          <div class="flex gap-1.5">
+            <select id="editClientCiPrefix" class="bg-slate-100 border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-extrabold text-slate-700">
+              <option value="V-">V-</option>
+              <option value="E-">E-</option>
+              <option value="J-">J-</option>
+            </select>
+            <input id="editClientCiNum" type="text" inputmode="numeric" placeholder="12345678" class="input-field text-xs font-bold" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Nombre y Apellido *</label>
+          <input id="editClientName" type="text" class="input-field text-xs font-bold" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Teléfono WhatsApp *</label>
+          <input id="editClientPhone" type="tel" class="input-field text-xs font-bold" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Dirección Escrita *</label>
+          <textarea id="editClientAddress" rows="2" class="input-field text-xs font-medium"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Coordenadas GPS (Ocultas en etiqueta)</label>
+          <div class="flex gap-1.5">
+            <input id="editClientCoords" type="text" placeholder="Ej. 9.0583, -62.0468" class="input-field text-xs font-mono" />
+            <button type="button" onclick="captureGps('editClientCoords','editGpsStatus')"
+              class="btn-active bg-sky-600 text-white text-xs font-extrabold px-2.5 rounded-xl shrink-0">
+              📍 GPS
+            </button>
+          </div>
+          <p id="editGpsStatus" class="text-[10px] text-slate-400 mt-0.5"></p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 mb-1">Veces que ha contratado el servicio</label>
+          <input id="editClientServices" type="number" min="0" step="1" class="input-field text-xs font-extrabold" />
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 pt-1">
+          <input id="editClientSyncOrders" type="checkbox" checked class="w-4 h-4 accent-sky-600 rounded" />
+          <span>Actualizar también sus datos en las órdenes anteriores</span>
+        </label>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="closeClientModal()"
+          class="btn-active flex-1 bg-slate-100 text-slate-700 font-extrabold py-2.5 rounded-xl text-xs">
+          Cancelar
+        </button>
+        <button type="button" onclick="saveClientFromModal()"
+          class="btn-active flex-1 bg-sky-600 hover:bg-sky-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow">
+          Guardar Cambios
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR PAGO DE UN DEUDOR -->
+  <div id="settleDebtModal" class="fixed inset-0 bg-slate-950/75 z-50 hidden items-center justify-center p-3">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-4 space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="font-extrabold text-slate-800 text-sm">Registrar Pago de Orden</h3>
+        <button onclick="closeSettleModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-extrabold text-sm">✕</button>
+      </div>
+      <div id="settleOrderSummary" class="text-xs bg-amber-50 p-3 rounded-xl border border-amber-200 space-y-1"></div>
+      <div>
+        <label class="block text-xs font-extrabold text-slate-700 mb-1">Código de Referencia (Pago Móvil / Transferencia)</label>
+        <input id="settleCodInput" type="text" placeholder="Ej. 839201" class="input-field font-mono font-bold" />
+      </div>
+      <div>
+        <label class="block text-xs font-extrabold text-slate-700 mb-1">Tasa BCV del Día de Pago (Bs/$)</label>
+        <input id="settleBcvInput" type="text" inputmode="decimal" class="input-field font-extrabold text-emerald-700" />
+      </div>
+      <button type="button" onclick="confirmSettleDebt()"
+        class="btn-active w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs shadow">
+        ✅ Confirmar Pago y Calcular Dólares al Día
+      </button>
+    </div>
+  </div>
+
+  <!-- NAVEGACIÓN INFERIOR -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 shadow-lg">
+    <div class="max-w-md mx-auto grid grid-cols-6 text-[10px] font-extrabold text-slate-400">
+      <button onclick="switchTab('nueva')" id="nav-nueva" class="py-2 flex flex-col items-center gap-0.5 text-sky-600">
+        <span class="text-base">➕</span>
+        <span>Nueva</span>
+      </button>
+      <button onclick="switchTab('ordenes')" id="nav-ordenes" class="py-2 flex flex-col items-center gap-0.5 relative">
+        <span class="text-base">📦</span>
+        <span>Órdenes</span>
+      </button>
+      <button onclick="switchTab('deudores')" id="nav-deudores" class="py-2 flex flex-col items-center gap-0.5 relative">
+        <span class="text-base">⏳</span>
+        <span>Deudores</span>
+        <span id="navDebtBadge" class="hidden absolute top-1 right-2 bg-rose-600 text-white text-[9px] px-1.5 rounded-full">0</span>
+      </button>
+      <button onclick="switchTab('clientes')" id="nav-clientes" class="py-2 flex flex-col items-center gap-0.5">
+        <span class="text-base">👥</span>
+        <span>Clientes</span>
+      </button>
+      <button onclick="switchTab('promos')" id="nav-promos" class="py-2 flex flex-col items-center gap-0.5">
+        <span class="text-base">📣</span>
+        <span>Promos</span>
+      </button>
+      <button onclick="switchTab('balance')" id="nav-balance" class="py-2 flex flex-col items-center gap-0.5">
+        <span class="text-base">📊</span>
+        <span>Balance</span>
+      </button>
+    </div>
+  </nav>
+
+  <script>
+    const STORAGE_KEY = 'lavanderia_apk_master_v3';
+
+    let state = {
+      businessName: 'LAVANDERIA EXPRESS',
+      bcvRate: 45.00,
+      settings: {
+        pricePerKgBs: 35.00,
+        suppliesCostPerKgBs: 5.00,
+        operationsCostPerKgBs: 4.00
+      },
+      nextOrderSeq: 1,
+      orders: [],
+      clients: {}
+    };
+
+    let currentPaymentMode = 'PAGADO';
+    let currentTicketOrder = null;
+    let settlingOrderId = null;
+    let editingOriginalCi = null;
+
+    function parseLocalNum(val, fallback = 0) {
+      if (val === null || val === undefined) return fallback;
+      const cleaned = String(val).trim().replace(',', '.').replace(/[^0-9.-]/g, '');
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? fallback : num;
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('lavanderia_apk_master_v2');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state.businessName = parsed.businessName || state.businessName;
+          state.bcvRate = parseLocalNum(parsed.bcvRate, 45.00);
+          state.nextOrderSeq = parsed.nextOrderSeq || 1;
+          state.orders = Array.isArray(parsed.orders) ? parsed.orders : [];
+          state.clients = parsed.clients || {};
+
+          if (parsed.settings) {
+            state.settings.pricePerKgBs = parseLocalNum(parsed.settings.pricePerKgBs, 35.00);
+            state.settings.suppliesCostPerKgBs = parseLocalNum(
+              parsed.settings.suppliesCostPerKgBs !== undefined ? parsed.settings.suppliesCostPerKgBs : parsed.settings.suppliesCostBs,
+              5.00
+            );
+            state.settings.operationsCostPerKgBs = parseLocalNum(
+              parsed.settings.operationsCostPerKgBs !== undefined
+                ? parsed.settings.operationsCostPerKgBs
+                : (parsed.settings.washCostPerKgBs !== undefined ? parsed.settings.washCostPerKgBs : parsed.settings.washCostBs),
+              4.00
+            );
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      syncConfigInputsToUi();
+      updateNextOrderIdField();
+      initDefaultDates();
+      recalcOrderTotals();
+      refreshAllViews();
+    }
+
+    function syncConfigInputsToUi() {
+      document.getElementById('headerBrandTitle').textContent = state.businessName;
+      document.getElementById('cfgBusinessName').value = state.businessName;
+      document.getElementById('bcvRateInput').value = Number(state.bcvRate).toFixed(2);
+      document.getElementById('cfgPricePerKgBs').value = Number(state.settings.pricePerKgBs).toFixed(2);
+      document.getElementById('cfgSuppliesCostPerKgBs').value = Number(state.settings.suppliesCostPerKgBs).toFixed(2);
+      document.getElementById('cfgOperationsCostPerKgBs').value = Number(state.settings.operationsCostPerKgBs).toFixed(2);
+      document.getElementById('labelPricePerKg').textContent = Number(state.settings.pricePerKgBs).toFixed(2);
+      updateUnitMarginPreview();
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error('Error guardando en localStorage:', e);
+      }
+      refreshAllViews();
+    }
+
+    function updateUnitMarginPreview() {
+      const priceKg = parseLocalNum(document.getElementById('cfgPricePerKgBs').value, state.settings.pricePerKgBs);
+      const supKg = parseLocalNum(document.getElementById('cfgSuppliesCostPerKgBs').value, state.settings.suppliesCostPerKgBs);
+      const opsKg = parseLocalNum(document.getElementById('cfgOperationsCostPerKgBs').value, state.settings.operationsCostPerKgBs);
+
+      const totalCostKg = supKg + opsKg;
+      const netMarginKgBs = priceKg - totalCostKg;
+      const rate = state.bcvRate > 0 ? state.bcvRate : 1;
+      const netMarginKgUsd = netMarginKgBs / rate;
+
+      const elCost = document.getElementById('unitTotalCostPerKgBs');
+      const elProfitBs = document.getElementById('unitNetProfitPerKgBs');
+      const elProfitUsd = document.getElementById('unitNetProfitPerKgUsd');
+
+      if (elCost) elCost.textContent = totalCostKg.toFixed(2);
+      if (elProfitBs) elProfitBs.textContent = netMarginKgBs.toFixed(2);
+      if (elProfitUsd) elProfitUsd.textContent = netMarginKgUsd.toFixed(2);
+    }
+
+    function autoSaveCostConfig() {
+      const brand = (document.getElementById('cfgBusinessName').value || '').trim().toUpperCase() || 'LAVANDERIA EXPRESS';
+      const pKg = parseLocalNum(document.getElementById('cfgPricePerKgBs').value, 0);
+      const supKg = parseLocalNum(document.getElementById('cfgSuppliesCostPerKgBs').value, 0);
+      const opsKg = parseLocalNum(document.getElementById('cfgOperationsCostPerKgBs').value, 0);
+
+      state.businessName = brand;
+      state.settings.pricePerKgBs = pKg;
+      state.settings.suppliesCostPerKgBs = supKg;
+      state.settings.operationsCostPerKgBs = opsKg;
+
+      document.getElementById('headerBrandTitle').textContent = state.businessName;
+      document.getElementById('labelPricePerKg').textContent = pKg.toFixed(2);
+
+      updateUnitMarginPreview();
+      recalcOrderTotals();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderBalanceStats();
+
+      const badge = document.getElementById('saveConfigBadge');
+      if (badge) {
+        badge.classList.remove('hidden');
+        clearTimeout(window._saveBadgeTimer);
+        window._saveBadgeTimer = setTimeout(() => badge.classList.add('hidden'), 1800);
+      }
+    }
+
+    function saveBusinessAndCostConfig(showAlert) {
+      autoSaveCostConfig();
+
+      const recalcCheck = document.getElementById('recalcExistingOrdersCheck');
+      if (recalcCheck && recalcCheck.checked && state.orders.length > 0) {
+        const pKg = state.settings.pricePerKgBs;
+        const supKg = state.settings.suppliesCostPerKgBs;
+        const opsKg = state.settings.operationsCostPerKgBs;
+
+        state.orders.forEach((o) => {
+          const kg = parseLocalNum(o.kg, 0);
+          o.pricePerKgBs = pKg;
+          o.suppliesCostPerKgBs = supKg;
+          o.operationsCostPerKgBs = opsKg;
+          o.suppliesCostBs = Number((kg * supKg).toFixed(2));
+          o.operationsCostBs = Number((kg * opsKg).toFixed(2));
+          o.washCostBs = o.operationsCostBs;
+          o.totalCostBs = Number((o.suppliesCostBs + o.operationsCostBs).toFixed(2));
+          o.profitBs = Number((Number(o.amountBs || 0) - o.totalCostBs).toFixed(2));
+          if (o.isPaid) {
+            const r = o.paidBcvRate || state.bcvRate || 1;
+            o.profitUsd = Number((o.profitBs / r).toFixed(2));
+          }
+        });
+        recalcCheck.checked = false;
+      }
+
+      syncConfigInputsToUi();
+      saveState();
+      if (showAlert) {
+        alert('Precios y costos por kilogramo guardados correctamente.');
+      }
+    }
+
+    function formatOrderSeq(num) {
+      return '#ORD-' + String(num).padStart(3, '0');
+    }
+
+    function updateNextOrderIdField() {
+      document.getElementById('orderIdInput').value = formatOrderSeq(state.nextOrderSeq);
+    }
+
+    function toLocalIsoString(dateObj) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return (
+        dateObj.getFullYear() + '-' +
+        pad(dateObj.getMonth() + 1) + '-' +
+        pad(dateObj.getDate()) + 'T' +
+        pad(dateObj.getHours()) + ':' +
+        pad(dateObj.getMinutes())
+      );
+    }
+
+    function formatDisplayDateTime(isoStr) {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      return d.toLocaleString('es-VE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+
+    function initDefaultDates() {
+      const now = new Date();
+      document.getElementById('orderCreatedAt').value = toLocalIsoString(now);
+      const plus3 = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      document.getElementById('orderDeliveryAt').value = toLocalIsoString(plus3);
+    }
+
+    function setDeliveryOffsetHours(hours) {
+      const baseVal = document.getElementById('orderCreatedAt').value;
+      const baseDate = baseVal ? new Date(baseVal) : new Date();
+      const target = new Date(baseDate.getTime() + hours * 60 * 60 * 1000);
+      document.getElementById('orderDeliveryAt').value = toLocalIsoString(target);
+    }
+
+    function setDeliveryFixedTime(hour24, minute) {
+      const now = new Date();
+      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour24, minute, 0);
+      if (target.getTime() <= now.getTime()) {
+        target.setDate(target.getDate() + 1);
+      }
+      document.getElementById('orderDeliveryAt').value = toLocalIsoString(target);
+    }
+
+    async function fetchBcvRate() {
+      const btn = document.getElementById('btnSyncBcv');
+      const prev = btn.textContent;
+      btn.textContent = '...';
+      try {
+        const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.promedio) {
+            state.bcvRate = Number(data.promedio);
+            document.getElementById('bcvRateInput').value = state.bcvRate.toFixed(2);
+            updateUnitMarginPreview();
+            recalcOrderTotals();
+            saveState();
+            btn.textContent = '✓ OK';
+            setTimeout(() => { btn.textContent = prev; }, 1400);
+            return;
+          }
+        }
+        alert('No se pudo sincronizar automáticamente. Ingresa la tasa de bcv.org.ve en la casilla.');
+      } catch (e) {
+        alert('Sin conexión al servidor de consulta. Puedes escribir la tasa BCV manualmente.');
+      }
+      btn.textContent = prev;
+    }
+
+    function saveBcvRateManual() {
+      const val = parseLocalNum(document.getElementById('bcvRateInput').value, 0);
+      if (val > 0) {
+        state.bcvRate = val;
+        updateUnitMarginPreview();
+        recalcOrderTotals();
+        saveState();
+      }
+    }
+
+    function setQuickKg(kg) {
+      document.getElementById('orderKg').value = kg;
+      recalcOrderTotals();
+    }
+
+    function recalcOrderTotals() {
+      const kg = parseLocalNum(document.getElementById('orderKg').value, 0);
+      const pricePerKg = parseLocalNum(state.settings.pricePerKgBs, 0);
+      const supPerKg = parseLocalNum(state.settings.suppliesCostPerKgBs, 0);
+      const opsPerKg = parseLocalNum(state.settings.operationsCostPerKgBs, 0);
+
+      const totalBs = kg * pricePerKg;
+      const costPerKg = supPerKg + opsPerKg;
+      const totalCostBs = kg * costPerKg;
+      const profitBs = totalBs - totalCostBs;
+
+      const rate = state.bcvRate > 0 ? state.bcvRate : 1;
+      const totalUsd = totalBs / rate;
+      const profitUsd = profitBs / rate;
+
+      document.getElementById('calcTotalBs').textContent = totalBs.toFixed(2);
+      document.getElementById('calcTotalUsd').textContent = totalUsd.toFixed(2);
+
+      const elCostRate = document.getElementById('calcOrderCostRateLabel');
+      const elCostBs = document.getElementById('calcOrderCostBs');
+      const elProfitBs = document.getElementById('calcOrderProfitBs');
+      const elProfitUsd = document.getElementById('calcOrderProfitUsd');
+
+      if (elCostRate) elCostRate.textContent = costPerKg.toFixed(2);
+      if (elCostBs) elCostBs.textContent = totalCostBs.toFixed(2);
+      if (elProfitBs) elProfitBs.textContent = profitBs.toFixed(2);
+      if (elProfitUsd) elProfitUsd.textContent = profitUsd.toFixed(2);
+    }
+
+    function selectPaymentMode(mode) {
+      currentPaymentMode = mode;
+      const btnNow = document.getElementById('payBtnNow');
+      const btn15 = document.getElementById('payBtn15');
+      const btn30 = document.getElementById('payBtn30');
+      const codWrap = document.getElementById('codInputWrapper');
+      const notice = document.getElementById('payLaterNotice');
+
+      const clsPaid = 'btn-active py-2.5 px-2 rounded-xl text-xs font-extrabold border bg-emerald-600 text-white border-emerald-600 shadow-sm';
+      const clsCredit = 'btn-active py-2.5 px-2 rounded-xl text-xs font-extrabold border bg-amber-600 text-white border-amber-600 shadow-sm';
+      const clsIdle = 'btn-active py-2.5 px-2 rounded-xl text-xs font-extrabold border bg-slate-50 text-slate-700 border-slate-300';
+
+      btnNow.className = mode === 'PAGADO' ? clsPaid : clsIdle;
+      btn15.className = mode === 'PROX_15' ? clsCredit : clsIdle;
+      btn30.className = mode === 'PROX_30' ? clsCredit : clsIdle;
+
+      if (mode === 'PAGADO') {
+        codWrap.classList.remove('hidden');
+        notice.classList.add('hidden');
+      } else {
+        codWrap.classList.add('hidden');
+        notice.classList.remove('hidden');
+      }
+    }
+
+    function getFullCi() {
+      const prefix = document.getElementById('ciPrefix').value;
+      const num = document.getElementById('ciNumber').value.trim().replace(/[^0-9A-Za-z]/g, '');
+      return num ? (prefix + num) : '';
+    }
+
+    function handleCiLookup() {
+      const fullCi = getFullCi();
+      const badge = document.getElementById('clientHistoryBadge');
+      if (fullCi && state.clients[fullCi]) {
+        const c = state.clients[fullCi];
+        document.getElementById('clientName').value = c.name || '';
+        document.getElementById('clientPhone').value = c.phone || '';
+        document.getElementById('clientAddress').value = c.address || '';
+        document.getElementById('clientCoords').value = c.coords || '';
+        badge.textContent = '★ ' + (c.servicesCount || 1) + ' servicio(s)';
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function captureGps(inputId, statusId) {
+      const msg = document.getElementById(statusId);
+      if (!navigator.geolocation) {
+        if (msg) msg.textContent = 'Geolocalización no disponible. Puedes pegar el link o coordenadas.';
+        return;
+      }
+      if (msg) msg.textContent = 'Obteniendo ubicación GPS del dispositivo...';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6);
+          document.getElementById(inputId).value = coords;
+          if (msg) msg.textContent = '✓ Ubicación GPS capturada.';
+        },
+        () => {
+          if (msg) msg.textContent = 'Activa la Ubicación en tu teléfono o pega las coordenadas manualmente.';
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    }
+
+    function openCoordsInMaps(coords) {
+      const val = (coords || '').trim();
+      if (!val) {
+        alert('No hay coordenadas registradas.');
+        return;
+      }
+      if (val.startsWith('http://') || val.startsWith('https://')) {
+        window.open(val, '_blank');
+      } else {
+        window.open('https://www.google.com/maps?q=' + encodeURIComponent(val), '_blank');
+      }
+    }
+
+    function formatWhatsAppPhone(phone) {
+      let digits = (phone || '').replace(/\D/g, '');
+      if (digits.startsWith('0')) {
+        digits = '58' + digits.substring(1);
+      } else if (!digits.startsWith('58') && digits.length === 10) {
+        digits = '58' + digits;
+      }
+      return digits;
+    }
+
+    function openWhatsAppChat(phone, message) {
+      const clean = formatWhatsAppPhone(phone);
+      if (!clean) {
+        alert('Número de teléfono inválido.');
+        return;
+      }
+      const url = 'https://wa.me/' + clean + (message ? '?text=' + encodeURIComponent(message) : '');
+      window.open(url, '_blank');
+    }
+
+    function calculateNextDueDate(mode) {
+      const now = new Date();
+      let year = now.getFullYear();
+      let month = now.getMonth();
+      let targetDay = mode === 'PROX_15' ? 15 : 30;
+
+      if (mode === 'PROX_15' && now.getDate() >= 15) month += 1;
+      if (mode === 'PROX_30' && now.getDate() >= 30) month += 1;
+      if (month > 11) { month = 0; year += 1; }
+
+      const maxDays = new Date(year, month + 1, 0).getDate();
+      const day = Math.min(targetDay, maxDays);
+      return new Date(year, month, day).toLocaleDateString('es-VE');
+    }
+
+    function saveNewOrder() {
+      const orderId = document.getElementById('orderIdInput').value.trim() || formatOrderSeq(state.nextOrderSeq);
+      const fullCi = getFullCi();
+      const name = document.getElementById('clientName').value.trim();
+      const phone = document.getElementById('clientPhone').value.trim();
+      const address = document.getElementById('clientAddress').value.trim();
+      const coords = document.getElementById('clientCoords').value.trim();
+      const kg = parseLocalNum(document.getElementById('orderKg').value, 0);
+      const createdAt = document.getElementById('orderCreatedAt').value;
+      const deliveryAt = document.getElementById('orderDeliveryAt').value;
+
+      if (!fullCi || !name || !phone || !address || !kg || kg <= 0 || !deliveryAt) {
+        alert('Por favor completa Cédula, Nombre, Teléfono, Dirección, Peso (Kg) y Fecha de Entrega.');
+        return;
+      }
+
+      let cod = document.getElementById('orderCod').value.trim();
+      let isPaid = currentPaymentMode === 'PAGADO';
+      let dueLabel = 'Pagado';
+
+      if (isPaid) {
+        if (!cod) cod = 'EFECTIVO';
+      } else if (currentPaymentMode === 'PROX_15') {
+        dueLabel = 'Próx. 15 (' + calculateNextDueDate('PROX_15') + ')';
+        cod = 'POR COBRAR 15';
+      } else {
+        dueLabel = 'Próx. 30 (' + calculateNextDueDate('PROX_30') + ')';
+        cod = 'POR COBRAR 30';
+      }
+
+      const pricePerKgBs = parseLocalNum(state.settings.pricePerKgBs, 0);
+      const suppliesCostPerKgBs = parseLocalNum(state.settings.suppliesCostPerKgBs, 0);
+      const operationsCostPerKgBs = parseLocalNum(state.settings.operationsCostPerKgBs, 0);
+
+      const amountBs = Number((kg * pricePerKgBs).toFixed(2));
+      const suppliesCostBs = Number((kg * suppliesCostPerKgBs).toFixed(2));
+      const operationsCostBs = Number((kg * operationsCostPerKgBs).toFixed(2));
+      const totalCostBs = Number((suppliesCostBs + operationsCostBs).toFixed(2));
+      const profitBs = Number((amountBs - totalCostBs).toFixed(2));
+
+      const rateToday = Number(state.bcvRate || 1);
+      const paidBcvRate = isPaid ? rateToday : null;
+      const paidAt = isPaid ? new Date().toISOString() : null;
+      const amountUsd = isPaid ? Number((amountBs / rateToday).toFixed(2)) : null;
+      const profitUsd = isPaid ? Number((profitBs / rateToday).toFixed(2)) : null;
+
+      const newOrder = {
+        id: orderId,
+        ci: fullCi,
+        clientName: name,
+        clientPhone: phone,
+        clientAddress: address,
+        clientCoords: coords,
+        kg: kg,
+        pricePerKgBs: pricePerKgBs,
+        suppliesCostPerKgBs: suppliesCostPerKgBs,
+        operationsCostPerKgBs: operationsCostPerKgBs,
+        amountBs: amountBs,
+        suppliesCostBs: suppliesCostBs,
+        operationsCostBs: operationsCostBs,
+        washCostBs: operationsCostBs,
+        totalCostBs: totalCostBs,
+        profitBs: profitBs,
+        createdBcvRate: rateToday,
+        paidBcvRate: paidBcvRate,
+        amountUsd: amountUsd,
+        profitUsd: profitUsd,
+        isPaid: isPaid,
+        paymentPlan: currentPaymentMode,
+        dueLabel: dueLabel,
+        cod: cod,
+        createdAt: createdAt,
+        deliveryAt: deliveryAt,
+        paidAt: paidAt,
+        status: 'Recibido'
+      };
+
+      state.orders.unshift(newOrder);
+      state.nextOrderSeq += 1;
+
+      if (!state.clients[fullCi]) {
+        state.clients[fullCi] = {
+          ci: fullCi,
+          name: name,
+          phone: phone,
+          address: address,
+          coords: coords,
+          servicesCount: 1,
+          lastOrderAt: createdAt
+        };
+      } else {
+        state.clients[fullCi].name = name;
+        state.clients[fullCi].phone = phone;
+        state.clients[fullCi].address = address;
+        if (coords) state.clients[fullCi].coords = coords;
+        state.clients[fullCi].servicesCount = (state.clients[fullCi].servicesCount || 0) + 1;
+        state.clients[fullCi].lastOrderAt = createdAt;
+      }
+
+      saveState();
+      resetOrderForm();
+      openTicketModal(newOrder);
+    }
+
+    function resetOrderForm() {
+      document.getElementById('ciNumber').value = '';
+      document.getElementById('clientName').value = '';
+      document.getElementById('clientPhone').value = '';
+      document.getElementById('clientAddress').value = '';
+      document.getElementById('clientCoords').value = '';
+      document.getElementById('orderKg').value = '';
+      document.getElementById('orderCod').value = '';
+      document.getElementById('clientHistoryBadge').classList.add('hidden');
+      selectPaymentMode('PAGADO');
+      updateNextOrderIdField();
+      initDefaultDates();
+      recalcOrderTotals();
+    }
+
+    // MOTOR GRÁFICO DE ETIQUETA TÉRMICA 58MM (384 PX)
+    function wrapCanvasText(ctx, text, maxWidth) {
+      const words = String(text || '').split(' ');
+      const lines = [];
+      let current = '';
+      for (let i = 0; i < words.length; i++) {
+        const test = current ? current + ' ' + words[i] : words[i];
+        if (ctx.measureText(test).width > maxWidth && current) {
+          lines.push(current);
+          current = words[i];
+        } else {
+          current = test;
+        }
+      }
+      if (current) lines.push(current);
+      return lines.length ? lines : [''];
+    }
+
+    function drawThermalTicketCanvas(order) {
+      const canvas = document.getElementById('ticketCanvas');
+      const ctx = canvas.getContext('2d');
+      const W = 384;
+
+      ctx.font = 'bold 20px monospace';
+      const addrLines = wrapCanvasText(ctx, 'DIR: ' + order.clientAddress, W - 28);
+      const nameLines = wrapCanvasText(ctx, 'CLIENTE: ' + order.clientName, W - 28);
+
+      const dynamicHeight = 435 + (addrLines.length * 24) + (nameLines.length * 24);
+      canvas.width = W;
+      canvas.height = dynamicHeight;
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, dynamicHeight);
+      ctx.strokeStyle = '#000000';
+      ctx.fillStyle = '#000000';
+
+      ctx.lineWidth = 3;
+      ctx.strokeRect(6, 6, W - 12, dynamicHeight - 12);
+
+      ctx.fillRect(12, 12, W - 24, 48);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(state.businessName || 'LAVANDERIA EXPRESS', W / 2, 43);
+
+      ctx.fillStyle = '#000000';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(14, 70, 210, 68);
+      ctx.fillRect(230, 70, 140, 68);
+
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText('CAJA / ORDEN', 119, 90);
+      ctx.font = '900 28px monospace';
+      ctx.fillText(order.id, 119, 124);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 13px monospace';
+      ctx.fillText('PESO ROPA', 300, 90);
+      ctx.font = '900 26px monospace';
+      ctx.fillText(Number(order.kg).toFixed(1) + ' KG', 300, 124);
+
+      let y = 166;
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 19px monospace';
+
+      nameLines.forEach((line) => {
+        ctx.fillText(line, 16, y);
+        y += 24;
+      });
+
+      ctx.fillText('C.I.: ' + order.ci, 16, y);
+      y += 24;
+      ctx.fillText('TEL:  ' + order.clientPhone, 16, y);
+      y += 24;
+
+      addrLines.forEach((line) => {
+        ctx.fillText(line, 16, y);
+        y += 24;
+      });
+
+      y += 4;
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.moveTo(14, y);
+      ctx.lineTo(W - 14, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      y += 26;
+
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('MONTO: ' + Number(order.amountBs).toFixed(2) + ' Bs', 16, y);
+      y += 24;
+      ctx.fillText('COD:   ' + order.cod, 16, y);
+      y += 24;
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('CREADA: ' + formatDisplayDateTime(order.createdAt), 16, y);
+      y += 22;
+
+      ctx.lineWidth = 3;
+      ctx.strokeRect(14, y, W - 28, 78);
+      ctx.fillRect(14, y, W - 28, 28);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.font = '900 16px sans-serif';
+      ctx.fillText('FECHA Y HORA ESTIMADA DE ENTREGA', W / 2, y + 20);
+
+      ctx.fillStyle = '#000000';
+      ctx.font = '900 20px monospace';
+      ctx.fillText(formatDisplayDateTime(order.deliveryAt), W / 2, y + 58);
+    }
+
+    function openTicketModal(order) {
+      currentTicketOrder = order;
+      drawThermalTicketCanvas(order);
+      const modal = document.getElementById('ticketModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTicketModal() {
+      const modal = document.getElementById('ticketModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function printGraphicViaRawBt() {
+      if (!currentTicketOrder) return;
+      const canvas = document.getElementById('ticketCanvas');
+      const dataUrl = canvas.toDataURL('image/png');
+      window.location.href = 'rawbt:' + dataUrl;
+    }
+
+    function normalizeAscii(str) {
+      return (str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\x20-\x7E]/g, '');
+    }
+
+    function buildEscPosBytes(order) {
+      const ESC = 0x1B;
+      const GS = 0x1D;
+      const enc = (s) => new TextEncoder().encode(normalizeAscii(s));
+      const bytes = [
+        ESC, 0x40,
+        ESC, 0x61, 0x01,
+        GS, 0x21, 0x11,
+        ...enc((state.businessName || 'LAVANDERIA') + '\n'),
+        GS, 0x21, 0x00,
+        ...enc('================================\n'),
+        GS, 0x21, 0x11,
+        ...enc(order.id + '  ' + Number(order.kg).toFixed(1) + 'KG\n'),
+        GS, 0x21, 0x00,
+        ...enc('================================\n'),
+        ESC, 0x61, 0x00,
+        ESC, 0x45, 0x01,
+        ...enc('CLIENTE: ' + order.clientName + '\n'),
+        ...enc('C.I.:    ' + order.ci + '\n'),
+        ...enc('TEL:     ' + order.clientPhone + '\n'),
+        ...enc('DIR:     ' + order.clientAddress + '\n'),
+        ESC, 0x45, 0x00,
+        ...enc('--------------------------------\n'),
+        ...enc('MONTO:   ' + Number(order.amountBs).toFixed(2) + ' Bs\n'),
+        ...enc('COD:     ' + order.cod + '\n'),
+        ...enc('CREADA:  ' + formatDisplayDateTime(order.createdAt) + '\n'),
+        ...enc('================================\n'),
+        ESC, 0x61, 0x01,
+        ESC, 0x45, 0x01,
+        ...enc('ENTREGA ESTIMADA:\n'),
+        GS, 0x21, 0x01,
+        ...enc(formatDisplayDateTime(order.deliveryAt) + '\n\n\n\n'),
+        GS, 0x21, 0x00,
+        ESC, 0x45, 0x00
+      ];
+      return new Uint8Array(bytes);
+    }
+
+    function printEscPosTextViaRawBt() {
+      if (!currentTicketOrder) return;
+      const bytes = buildEscPosBytes(currentTicketOrder);
+      let bin = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        bin += String.fromCharCode(bytes[i]);
+      }
+      window.location.href = 'rawbt:base64,' + btoa(bin);
+    }
+
+    async function printViaWebBluetooth() {
+      if (!currentTicketOrder) return;
+      if (!navigator.bluetooth) {
+        alert('Dentro del APK usa el botón verde de RawBT para imprimir directamente en tu BIT5811DD.');
+        return;
+      }
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [
+            '000018f0-0000-1000-8000-00805f9b34fb',
+            'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+            '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+          ]
+        });
+        const server = await device.gatt.connect();
+        const services = await server.getPrimaryServices();
+        let writeChar = null;
+        for (const s of services) {
+          const chars = await s.getCharacteristics();
+          for (const c of chars) {
+            if (c.properties.write || c.properties.writeWithoutResponse) {
+              writeChar = c;
+              break;
+            }
+          }
+          if (writeChar) break;
+        }
+        if (!writeChar) {
+          alert('Usa el botón verde de RawBT para enviar la etiqueta.');
+          return;
+        }
+        const payload = buildEscPosBytes(currentTicketOrder);
+        for (let i = 0; i < payload.length; i += 100) {
+          await writeChar.writeValue(payload.slice(i, i + 100));
+        }
+      } catch (e) {
+        alert('Error Bluetooth. Usa el botón verde de RawBT.');
+      }
+    }
+
+    // CAMBIO DE ESTATUS DE ÓRDENES
+    function updateOrderStatus(orderId, newStatus) {
+      const ord = state.orders.find((o) => o.id === orderId);
+      if (!ord) return;
+      ord.status = newStatus;
+      saveState();
+    }
+
+    function renderOrdersList() {
+      const container = document.getElementById('ordersListContainer');
+      const q = (document.getElementById('searchOrdersInput').value || '').toLowerCase();
+      document.getElementById('ordersCountBadge').textContent = state.orders.length + ' órdenes';
+
+      const filtered = state.orders.filter((o) => {
+        return (
+          o.id.toLowerCase().includes(q) ||
+          o.clientName.toLowerCase().includes(q) ||
+          o.ci.toLowerCase().includes(q) ||
+          (o.status || '').toLowerCase().includes(q) ||
+          o.cod.toLowerCase().includes(q)
+        );
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="card p-6 text-center text-xs text-slate-400 font-semibold">No hay órdenes registradas.</div>';
+        return;
+      }
+
+      const statuses = ['Recibido', 'Lavando', 'Listo', 'Entregado'];
+
+      container.innerHTML = filtered.map((o) => {
+        const curStatus = o.status || 'Recibido';
+        const paidBadge = o.isPaid
+          ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">PAGADO ($${Number(o.amountUsd).toFixed(2)})</span>`
+          : `<span class="bg-amber-100 text-amber-900 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">${o.dueLabel}</span>`;
+
+        const statusButtons = statuses.map((st) => {
+          const active = curStatus === st;
+          let activeStyle = 'bg-slate-100 text-slate-600';
+          if (active && st === 'Recibido') activeStyle = 'bg-sky-600 text-white border-sky-700 shadow-sm';
+          if (active && st === 'Lavando') activeStyle = 'bg-amber-500 text-white border-amber-600 shadow-sm';
+          if (active && st === 'Listo') activeStyle = 'bg-indigo-600 text-white border-indigo-700 shadow-sm';
+          if (active && st === 'Entregado') activeStyle = 'bg-emerald-600 text-white border-emerald-700 shadow-sm';
+
+          return `<div onclick='updateOrderStatus("${o.id}", "${st}")' class="status-pill ${activeStyle}">${st}</div>`;
+        }).join('');
+
+        const gpsBtn = o.clientCoords
+          ? `<button onclick='openCoordsInMaps(${JSON.stringify(o.clientCoords)})' class="btn-active bg-slate-100 text-slate-800 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold">📍 Mapa GPS</button>`
+          : '';
+
+        return `
+          <div class="card p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-extrabold text-sm text-sky-700">${o.id}</span>
+                <span class="bg-slate-900 text-white text-xs font-extrabold px-2 py-0.5 rounded-lg">${Number(o.kg).toFixed(1)} Kg</span>
+              </div>
+              ${paidBadge}
+            </div>
+
+            <div class="text-xs space-y-0.5">
+              <div class="font-extrabold text-slate-900 text-sm">${o.clientName} <span class="text-slate-400 font-semibold text-xs">(${o.ci})</span></div>
+              <div class="text-slate-600 font-medium">${o.clientAddress}</div>
+              <div class="text-slate-500">Total: <strong class="text-slate-800">${Number(o.amountBs).toFixed(2)} Bs</strong> · Costo: <strong class="text-rose-600">${Number(o.totalCostBs || 0).toFixed(2)} Bs</strong> · Ganancia: <strong class="text-emerald-700">${Number(o.profitBs || 0).toFixed(2)} Bs</strong></div>
+              <div class="text-slate-500">COD: <span class="font-mono font-bold">${o.cod}</span></div>
+              <div class="text-sky-800 font-extrabold pt-0.5">Entrega: ${formatDisplayDateTime(o.deliveryAt)}</div>
+            </div>
+
+            <div class="pt-1">
+              <div class="text-[10px] font-extrabold uppercase text-slate-400 mb-1">Cambiar Estatus de la Orden:</div>
+              <div class="grid grid-cols-4 gap-1.5">
+                ${statusButtons}
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
+              <button onclick='openTicketById("${o.id}")' class="btn-active bg-sky-600 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold">🖨️ Etiqueta</button>
+              <button onclick='openWhatsAppChat("${o.clientPhone}", "Hola ${o.clientName}, el estado de tu orden de lavandería ${o.id} (${o.kg} Kg) es: *${curStatus}*. Entrega estimada: ${formatDisplayDateTime(o.deliveryAt)}.")' class="btn-active bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold">💬 WhatsApp</button>
+              ${gpsBtn}
+              <button onclick='deleteOrder("${o.id}")' class="btn-active ml-auto bg-rose-50 text-rose-600 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold">Eliminar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openTicketById(orderId) {
+      const found = state.orders.find((o) => o.id === orderId);
+      if (found) openTicketModal(found);
+    }
+
+    function deleteOrder(orderId) {
+      if (!confirm('¿Eliminar la orden ' + orderId + '?')) return;
+      state.orders = state.orders.filter((o) => o.id !== orderId);
+      saveState();
+    }
+
+    // DEUDORES
+    function renderDebtorsList() {
+      const container = document.getElementById('debtorsListContainer');
+      const unpaid = state.orders.filter((o) => !o.isPaid);
+      const badge = document.getElementById('navDebtBadge');
+
+      if (unpaid.length > 0) {
+        badge.textContent = unpaid.length;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      const totalBs = unpaid.reduce((acc, o) => acc + Number(o.amountBs || 0), 0);
+      const totalUsd = state.bcvRate > 0 ? totalBs / state.bcvRate : 0;
+
+      document.getElementById('debtTotalBs').textContent = totalBs.toFixed(2);
+      document.getElementById('debtTotalUsd').textContent = totalUsd.toFixed(2);
+
+      if (unpaid.length === 0) {
+        container.innerHTML = '<div class="card p-6 text-center text-xs text-slate-400 font-semibold">No hay clientes con pagos pendientes.</div>';
+        return;
+      }
+
+      container.innerHTML = unpaid.map((o) => {
+        const eqUsd = state.bcvRate > 0 ? (o.amountBs / state.bcvRate).toFixed(2) : '0.00';
+        const msg = `Hola ${o.clientName}, te escribimos de ${state.businessName} para recordarte amablemente el pago pendiente de tu orden ${o.id} (${o.kg} Kg) pautado para ${o.dueLabel}. Monto: ${Number(o.amountBs).toFixed(2)} Bs (Equivalente hoy a tasa BCV ${state.bcvRate.toFixed(2)}: $${eqUsd}). ¡Muchas gracias!`;
+
+        return `
+          <div class="card p-3.5 border-amber-300 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-extrabold text-sm text-amber-900">${o.id} · ${o.clientName}</span>
+              <span class="bg-amber-100 text-amber-900 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">${o.dueLabel}</span>
+            </div>
+            <div class="text-xs text-slate-600 space-y-0.5">
+              <div>C.I.: <strong>${o.ci}</strong> · Tel: ${o.clientPhone}</div>
+              <div>Deuda: <strong class="text-slate-900">${Number(o.amountBs).toFixed(2)} Bs</strong> (≈ $${eqUsd} a tasa BCV hoy)</div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick='openWhatsAppChat("${o.clientPhone}", ${JSON.stringify(msg)})'
+                class="btn-active bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl text-xs font-extrabold shadow-sm">
+                🔔 Recordar Pago
+              </button>
+              <button onclick='openSettleModal("${o.id}")'
+                class="btn-active bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-extrabold shadow-sm">
+                ✅ Registrar Pago
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openSettleModal(orderId) {
+      const order = state.orders.find((o) => o.id === orderId);
+      if (!order) return;
+      settlingOrderId = orderId;
+      document.getElementById('settleOrderSummary').innerHTML = `
+        <div><strong>Orden:</strong> ${order.id} — ${order.clientName} (${order.ci})</div>
+        <div><strong>Monto en Bolívares:</strong> ${Number(order.amountBs).toFixed(2)} Bs</div>
+      `;
+      document.getElementById('settleCodInput').value = '';
+      document.getElementById('settleBcvInput').value = Number(state.bcvRate).toFixed(2);
+      const modal = document.getElementById('settleDebtModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSettleModal() {
+      const modal = document.getElementById('settleDebtModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      settlingOrderId = null;
+    }
+
+    function confirmSettleDebt() {
+      if (!settlingOrderId) return;
+      const order = state.orders.find((o) => o.id === settlingOrderId);
+      if (!order) return;
+
+      const cod = document.getElementById('settleCodInput').value.trim();
+      const ratePayDay = parseLocalNum(document.getElementById('settleBcvInput').value, state.bcvRate);
+      if (!cod) {
+        alert('Ingresa el código de referencia del pago.');
+        return;
+      }
+
+      order.isPaid = true;
+      order.cod = cod;
+      order.paidBcvRate = Number(ratePayDay.toFixed(2));
+      order.paidAt = new Date().toISOString();
+      order.amountUsd = Number((order.amountBs / ratePayDay).toFixed(2));
+      order.profitUsd = Number((order.profitBs / ratePayDay).toFixed(2));
+
+      saveState();
+      closeSettleModal();
+    }
+
+    // GESTIÓN Y MODIFICACIÓN DE CLIENTES
+    function openClientModal(ciKey) {
+      editingOriginalCi = ciKey || null;
+      const titleEl = document.getElementById('clientModalTitle');
+      const prefixEl = document.getElementById('editClientCiPrefix');
+      const numEl = document.getElementById('editClientCiNum');
+      const nameEl = document.getElementById('editClientName');
+      const phoneEl = document.getElementById('editClientPhone');
+      const addrEl = document.getElementById('editClientAddress');
+      const coordsEl = document.getElementById('editClientCoords');
+      const servEl = document.getElementById('editClientServices');
+      document.getElementById('editGpsStatus').textContent = '';
+
+      if (ciKey && state.clients[ciKey]) {
+        const c = state.clients[ciKey];
+        titleEl.textContent = 'Modificar Cliente (' + c.ci + ')';
+        const match = String(c.ci).match(/^([VEJ]-)(.+)$/i);
+        if (match) {
+          prefixEl.value = match[1].toUpperCase();
+          numEl.value = match[2];
+        } else {
+          prefixEl.value = 'V-';
+          numEl.value = String(c.ci).replace(/[^0-9A-Za-z]/g, '');
+        }
+        nameEl.value = c.name || '';
+        phoneEl.value = c.phone || '';
+        addrEl.value = c.address || '';
+        coordsEl.value = c.coords || '';
+        servEl.value = c.servicesCount !== undefined ? c.servicesCount : 1;
+      } else {
+        titleEl.textContent = 'Registrar Nuevo Cliente';
+        prefixEl.value = 'V-';
+        numEl.value = '';
+        nameEl.value = '';
+        phoneEl.value = '';
+        addrEl.value = '';
+        coordsEl.value = '';
+        servEl.value = 1;
+      }
+
+      const modal = document.getElementById('clientEditModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeClientModal() {
+      const modal = document.getElementById('clientEditModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      editingOriginalCi = null;
+    }
+
+    function saveClientFromModal() {
+      const prefix = document.getElementById('editClientCiPrefix').value;
+      const rawNum = document.getElementById('editClientCiNum').value.trim().replace(/[^0-9A-Za-z]/g, '');
+      const newCi = rawNum ? (prefix + rawNum) : '';
+      const name = document.getElementById('editClientName').value.trim();
+      const phone = document.getElementById('editClientPhone').value.trim();
+      const address = document.getElementById('editClientAddress').value.trim();
+      const coords = document.getElementById('editClientCoords').value.trim();
+      const servicesCount = Math.max(0, parseInt(document.getElementById('editClientServices').value, 10) || 0);
+      const syncOrders = document.getElementById('editClientSyncOrders').checked;
+
+      if (!newCi || !name || !phone || !address) {
+        alert('Por favor completa Cédula, Nombre, Teléfono y Dirección del cliente.');
+        return;
+      }
+
+      const prevRecord = editingOriginalCi ? state.clients[editingOriginalCi] : null;
+      const lastOrderAt = prevRecord && prevRecord.lastOrderAt ? prevRecord.lastOrderAt : new Date().toISOString();
+
+      if (editingOriginalCi && editingOriginalCi !== newCi) {
+        delete state.clients[editingOriginalCi];
+      }
+
+      state.clients[newCi] = {
+        ci: newCi,
+        name: name,
+        phone: phone,
+        address: address,
+        coords: coords,
+        servicesCount: servicesCount,
+        lastOrderAt: lastOrderAt
+      };
+
+      if (syncOrders) {
+        const targetCi = editingOriginalCi || newCi;
+        state.orders.forEach((o) => {
+          if (o.ci === targetCi || o.ci === newCi) {
+            o.ci = newCi;
+            o.clientName = name;
+            o.clientPhone = phone;
+            o.clientAddress = address;
+            o.clientCoords = coords;
+          }
+        });
+      }
+
+      saveState();
+      handleCiLookup();
+      closeClientModal();
+    }
+
+    function deleteClientRecord(ciKey) {
+      const c = state.clients[ciKey];
+      if (!c) return;
+      if (!confirm('¿Deseas eliminar al cliente ' + c.name + ' (' + c.ci + ') del directorio?')) return;
+      delete state.clients[ciKey];
+      saveState();
+    }
+
+    function renderClientsList() {
+      const container = document.getElementById('clientsListContainer');
+      const q = (document.getElementById('searchClientsInput').value || '').toLowerCase();
+      const list = Object.values(state.clients);
+      document.getElementById('clientsCountBadge').textContent = list.length;
+
+      const filtered = list.filter((c) => {
+        return (
+          c.ci.toLowerCase().includes(q) ||
+          c.name.toLowerCase().includes(q) ||
+          (c.phone || '').toLowerCase().includes(q) ||
+          (c.address || '').toLowerCase().includes(q)
+        );
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="card p-6 text-center text-xs text-slate-400 font-semibold">Aún no hay clientes guardados.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((c) => {
+        const gpsBtn = c.coords
+          ? `<button onclick='openCoordsInMaps(${JSON.stringify(c.coords)})' class="btn-active bg-slate-100 text-slate-700 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold">📍 Mapa GPS</button>`
+          : '';
+
+        return `
+          <div class="card p-3.5 space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="text-xs space-y-0.5">
+                <div class="font-extrabold text-slate-900 text-sm">${c.name}</div>
+                <div class="text-slate-500 font-medium">C.I.: <strong class="text-slate-800">${c.ci}</strong> · Tel: ${c.phone}</div>
+                <div class="text-slate-600">${c.address}</div>
+              </div>
+              <span class="bg-sky-100 text-sky-900 font-extrabold text-[11px] px-2.5 py-1 rounded-full shrink-0">
+                ${c.servicesCount || 1} serv.
+              </span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+              <button onclick='openWhatsAppChat("${c.phone}", "Hola ${c.name}, te escribimos de ${state.businessName}.")'
+                class="btn-active bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold shadow-sm">
+                💬 Chat WS
+              </button>
+              <button onclick='openClientModal(${JSON.stringify(c.ci)})'
+                class="btn-active bg-sky-600 hover:bg-sky-700 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold shadow-sm">
+                ✏️ Editar
+              </button>
+              ${gpsBtn}
+              <button onclick='deleteClientRecord(${JSON.stringify(c.ci)})'
+                class="btn-active ml-auto bg-rose-50 text-rose-600 px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold">
+                Eliminar
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // PROMOCIONES
+    function renderPromoRecipients() {
+      const minS = parseInt(document.getElementById('promoMinServices').value, 10) || 1;
+      const tpl = document.getElementById('promoMessageText').value || '';
+      const container = document.getElementById('promoRecipientsContainer');
+
+      const all = Object.values(state.clients);
+      const matched = all.filter((c) => (c.servicesCount || 1) >= minS);
+
+      document.getElementById('promoFilteredCount').textContent = matched.length + ' clientes';
+
+      if (matched.length === 0) {
+        container.innerHTML = '<div class="text-center text-xs text-slate-400 py-4 font-semibold">No hay clientes en este rango de servicios.</div>';
+        return;
+      }
+
+      container.innerHTML = matched.map((c) => {
+        const msg = tpl
+          .replace(/\{nombre\}/gi, c.name)
+          .replace(/\{servicios\}/gi, String(c.servicesCount || 1));
+
+        return `
+          <div class="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs">
+            <div>
+              <div class="font-extrabold text-slate-800">${c.name} <span class="text-slate-400 font-semibold">(${c.ci})</span></div>
+              <div class="text-[11px] text-sky-700 font-bold">${c.servicesCount || 1} servicio(s) contratados</div>
+            </div>
+            <button onclick='openWhatsAppChat("${c.phone}", ${JSON.stringify(msg)})'
+              class="btn-active bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shrink-0 shadow-sm">
+              📲 Enviar WS
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // BALANCE Y FINANZAS
+    function renderBalanceStats() {
+      const paid = state.orders.filter((o) => o.isPaid);
+      const pending = state.orders.filter((o) => !o.isPaid);
+      const activeBoxes = state.orders.filter((o) => (o.status || 'Recibido') !== 'Entregado');
+
+      const grossBs = paid.reduce((s, o) => s + Number(o.amountBs || 0), 0);
+      const grossUsd = paid.reduce((s, o) => s + Number(o.amountUsd || 0), 0);
+
+      const costBs = paid.reduce((s, o) => s + Number(o.totalCostBs || 0), 0);
+      const costUsd = paid.reduce((s, o) => {
+        const r = o.paidBcvRate || state.bcvRate || 1;
+        return s + (Number(o.totalCostBs || 0) / r);
+      }, 0);
+
+      const netBs = grossBs - costBs;
+      const netUsd = grossUsd - costUsd;
+
+      const pendingBs = pending.reduce((s, o) => s + Number(o.amountBs || 0), 0);
+      const pendingUsd = state.bcvRate > 0 ? pendingBs / state.bcvRate : 0;
+
+      document.getElementById('finNetProfitBs').textContent = netBs.toFixed(2);
+      document.getElementById('finNetProfitUsd').textContent = netUsd.toFixed(2);
+      document.getElementById('finGrossBs').textContent = grossBs.toFixed(2);
+      document.getElementById('finGrossUsd').textContent = grossUsd.toFixed(2);
+      document.getElementById('finTotalCostBs').textContent = costBs.toFixed(2);
+      document.getElementById('finTotalCostUsd').textContent = costUsd.toFixed(2);
+      document.getElementById('finPendingBs').textContent = pendingBs.toFixed(2);
+      document.getElementById('finPendingUsd').textContent = pendingUsd.toFixed(2);
+
+      document.getElementById('topActiveCount').textContent = activeBoxes.length + ' cajas';
+      document.getElementById('topPendingUsd').textContent = '$' + pendingUsd.toFixed(2);
+      document.getElementById('topProfitUsd').textContent = '$' + netUsd.toFixed(2);
+    }
+
+    function refreshAllViews() {
+      renderOrdersList();
+      renderDebtorsList();
+      renderClientsList();
+      renderPromoRecipients();
+      renderBalanceStats();
+    }
+
+    function switchTab(tabName) {
+      const tabs = ['nueva', 'ordenes', 'deudores', 'clientes', 'promos', 'balance'];
+      tabs.forEach((t) => {
+        const sec = document.getElementById('tab-' + t);
+        const nav = document.getElementById('nav-' + t);
+        if (t === tabName) {
+          sec.classList.remove('hidden');
+          nav.classList.add('text-sky-600');
+        } else {
+          sec.classList.add('hidden');
+          nav.classList.remove('text-sky-600');
+        }
+      });
+      if (tabName === 'balance') {
+        syncConfigInputsToUi();
+      }
+      refreshAllViews();
+    }
+
+    // EXPORTACIÓN EXCEL
+    async function exportAllToExcel() {
+      if (typeof XLSX === 'undefined') {
+        alert('Cargando motor de Excel, intenta nuevamente en 2 segundos.');
+        return;
+      }
+
+      const ordersRows = state.orders.map((o) => {
+        const usdVal = o.isPaid
+          ? Number(o.amountUsd || 0)
+          : (state.bcvRate > 0 ? Number((o.amountBs / state.bcvRate).toFixed(2)) : 0);
+        const profitUsdVal = o.isPaid
+          ? Number(o.profitUsd || 0)
+          : (state.bcvRate > 0 ? Number((o.profitBs / state.bcvRate).toFixed(2)) : 0);
+
+        return {
+          'N° Orden': o.id,
+          'Estatus Caja': o.status || 'Recibido',
+          'Cédula (C.I.)': o.ci,
+          'Cliente': o.clientName,
+          'Teléfono': o.clientPhone,
+          'Dirección Escrita': o.clientAddress,
+          'Coordenadas GPS': o.clientCoords || '',
+          'Peso (Kg)': Number(o.kg),
+          'Precio por Kg (Bs/Kg)': Number(o.pricePerKgBs !== undefined ? o.pricePerKgBs : state.settings.pricePerKgBs),
+          'Costo Insumos por Kg (Bs/Kg)': Number(o.suppliesCostPerKgBs !== undefined ? o.suppliesCostPerKgBs : state.settings.suppliesCostPerKgBs),
+          'Costo Operaciones por Kg (Bs/Kg)': Number(o.operationsCostPerKgBs !== undefined ? o.operationsCostPerKgBs : state.settings.operationsCostPerKgBs),
+          'Estado Pago': o.isPaid ? 'PAGADO' : o.dueLabel,
+          'COD Referencia': o.cod,
+          'Monto Total (Bs)': Number(o.amountBs),
+          'Costo Insumos Total (Bs)': Number(o.suppliesCostBs || 0),
+          'Costo Operaciones Total (Bs)': Number(o.operationsCostBs !== undefined ? o.operationsCostBs : (o.washCostBs || 0)),
+          'Costo Total Orden (Bs)': Number(o.totalCostBs || 0),
+          'Ganancia Neta (Bs)': Number(o.profitBs || 0),
+          'Tasa BCV Día Creación (Bs/$)': Number(o.createdBcvRate),
+          'Tasa BCV Día de Pago (Bs/$)': o.isPaid ? Number(o.paidBcvRate) : 'PENDIENTE',
+          'Monto en Dólares ($ USD)': usdVal,
+          'Ganancia Neta ($ USD)': profitUsdVal,
+          'Fecha Creación': formatDisplayDateTime(o.createdAt),
+          'Fecha Entrega Estimada': formatDisplayDateTime(o.deliveryAt),
+          'Fecha de Pago': o.paidAt ? formatDisplayDateTime(o.paidAt) : 'PENDIENTE'
+        };
+      });
+
+      const clientsRows = Object.values(state.clients).map((c) => ({
+        'Cédula (C.I.)': c.ci,
+        'Cliente': c.name,
+        'Teléfono WhatsApp': c.phone,
+        'Dirección': c.address,
+        'Coordenadas GPS': c.coords || '',
+        'Veces Contratado': Number(c.servicesCount || 1),
+        'Última Orden': formatDisplayDateTime(c.lastOrderAt)
+      }));
+
+      const debtorsRows = state.orders.filter((o) => !o.isPaid).map((o) => ({
+        'N° Orden': o.id,
+        'Cédula (C.I.)': o.ci,
+        'Cliente': o.clientName,
+        'Teléfono': o.clientPhone,
+        'Fecha Compromiso': o.dueLabel,
+        'Monto Adeudado (Bs)': Number(o.amountBs),
+        'Equivalente Hoy ($ USD)': state.bcvRate > 0 ? Number((o.amountBs / state.bcvRate).toFixed(2)) : 0
+      }));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersRows.length ? ordersRows : [{'Estado': 'Sin órdenes registradas'}]), 'Ordenes_y_Balance');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientsRows.length ? clientsRows : [{'Estado': 'Sin clientes registrados'}]), 'Clientes');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(debtorsRows.length ? debtorsRows : [{'Estado': 'Sin deudas pendientes'}]), 'Deudores');
+
+      const fileName = 'Lavanderia_Balance_' + new Date().toISOString().slice(0, 10) + '.xlsx';
+
+      try {
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const fileObj = new File([blob], fileName, { type: blob.type });
+
+        if (navigator.canShare && navigator.canShare({ files: [fileObj] })) {
+          await navigator.share({
+            title: 'Balance Lavandería',
+            text: 'Reporte de órdenes, clientes y balance en Bolívares y Dólares BCV.',
+            files: [fileObj]
+          });
+          return;
+        }
+      } catch (err) {
+        console.log('Usando descarga directa:', err);
+      }
+
+      XLSX.writeFile(wb, fileName);
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+
+
+    // Eliminador activo en tiempo real de cualquier elemento inyectado por Netlify
+    (function removeNetlifyBadge() {
+      function clean() {
+        const selectors = [
+          'iframe[src*="netlify"]',
+          'a[href*="netlify.com"]',
+          '[id*="netlify"]',
+          '[class*="netlify"]'
+        ];
+        selectors.forEach((sel) => {
+          document.querySelectorAll(sel).forEach((el) => el.remove());
+        });
+
+        // Buscar por texto exacto "Powered by Netlify" en elementos flotantes o Shadow DOM
+        document.querySelectorAll('div, a, aside, footer, button, span, iframe').forEach((el) => {
+          if (el.children.length <= 4 && el.textContent && el.textContent.trim().includes('Powered by Netlify')) {
+            const style = window.getComputedStyle(el);
+            if (style.position === 'fixed' || style.position === 'absolute' || el.tagName === 'A') {
+              el.remove();
+            }
+          }
+          if (el.shadowRoot) {
+            el.shadowRoot.querySelectorAll('a[href*="netlify"], div, span').forEach((sEl) => {
+              if (sEl.textContent && sEl.textContent.includes('Powered by Netlify')) {
+                el.remove();
+              }
+            });
+          }
+        });
+      }
+
+      clean();
+      const observer = new MutationObserver(clean);
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+      setInterval(clean, 500);
+    })();
+
+    window.addEventListener('DOMContentLoaded', loadState);
+  </script>
+</body>
+</html>
